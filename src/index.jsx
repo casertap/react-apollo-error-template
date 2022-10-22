@@ -8,6 +8,9 @@ import {
   gql,
   useQuery,
   useMutation,
+  concat,
+  HttpLink,
+  ApolloLink,
 } from "@apollo/client";
 
 import { link } from "./link.js";
@@ -32,11 +35,8 @@ const ADD_PERSON = gql`
 `;
 
 function App() {
-  const [name, setName] = useState('');
-  const {
-    loading,
-    data,
-  } = useQuery(ALL_PEOPLE);
+  const [name, setName] = useState("");
+  const { loading, data } = useQuery(ALL_PEOPLE);
 
   const [addPerson] = useMutation(ADD_PERSON, {
     update: (cache, { data: { addPerson: addPersonData } }) => {
@@ -46,10 +46,7 @@ function App() {
         query: ALL_PEOPLE,
         data: {
           ...peopleResult,
-          people: [
-            ...peopleResult.people,
-            addPersonData,
-          ],
+          people: [...peopleResult.people, addPersonData],
         },
       });
     },
@@ -58,21 +55,14 @@ function App() {
   return (
     <main>
       <h1>Apollo Client Issue Reproduction</h1>
-      <p>
-        This application can be used to demonstrate an error in Apollo Client.
-      </p>
+      <p>This application can be used to demonstrate an error in Apollo Client.</p>
       <div className="add-person">
         <label htmlFor="name">Name</label>
-        <input
-          type="text"
-          name="name"
-          value={name}
-          onChange={evt => setName(evt.target.value)}
-        />
+        <input type="text" name="name" value={name} onChange={(evt) => setName(evt.target.value)} />
         <button
           onClick={() => {
             addPerson({ variables: { name } });
-            setName('');
+            setName("");
           }}
         >
           Add person
@@ -83,7 +73,7 @@ function App() {
         <p>Loading…</p>
       ) : (
         <ul>
-          {data?.people.map(person => (
+          {data?.people.map((person) => (
             <li key={person.id}>{person.name}</li>
           ))}
         </ul>
@@ -92,9 +82,24 @@ function App() {
   );
 }
 
+const httpLink = new HttpLink({
+  uri: "https://api.newrelic.com/graphql",
+});
+
+const authMiddleware = new ApolloLink((operation, forward) => {
+  operation.setContext(({ headers = {} }) => ({
+    headers: {
+      ...headers,
+      "api-key": "123",
+    },
+  }));
+
+  return forward(operation);
+});
+
 const client = new ApolloClient({
   cache: new InMemoryCache(),
-  link
+  link: concat(authMiddleware, httpLink),
 });
 
 const container = document.getElementById("root");

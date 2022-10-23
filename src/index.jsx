@@ -12,7 +12,7 @@ import {
   HttpLink,
   ApolloLink,
 } from "@apollo/client";
-
+import { setContext } from "@apollo/client/link/context";
 import { link } from "./link.js";
 import "./index.css";
 
@@ -84,22 +84,35 @@ function App() {
 
 const httpLink = new HttpLink({
   uri: "https://api.newrelic.com/graphql",
+  credentials: "include",
 });
 
-const authMiddleware = new ApolloLink((operation, forward) => {
-  operation.setContext(({ headers = {} }) => ({
+const authLink = setContext((_, { headers }) => {
+  return {
     headers: {
       ...headers,
       "api-key": "123",
+      "test-key": "678",
+      authorization: `Bearer 456`,
+      "Access-Control-Allow-Credentialsi": true,
     },
-  }));
-
-  return forward(operation);
+  };
 });
+
+// const authMiddleware = new ApolloLink((operation, forward) => {
+//   operation.setContext(({ headers = {} }) => ({
+//     headers: {
+//       ...headers,
+//       "api-key": "123",
+//     },
+//   }));
+//   return forward(operation);
+// });
 
 const client = new ApolloClient({
   cache: new InMemoryCache(),
-  link: concat(authMiddleware, httpLink),
+  link: authLink.concat(httpLink),
+  // link: concat(authMiddleware, httpLink),
 });
 
 const container = document.getElementById("root");
